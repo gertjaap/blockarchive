@@ -1,0 +1,94 @@
+<!doctype html>
+
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+
+  <title>the block archive</title>
+  <meta name="description" content="the block archive">
+  <meta name="author" content="Gert-Jaap Glasbergen">
+
+  <style>
+      html {
+          font-family: 'Courier New', Courier, monospace;
+      }
+      .dropzone {
+        padding-top: 70px;
+        padding-bottom: 70px;
+        line-height: 10px;
+        text-align: center;
+        border: 2px dashed rgba(0, 0, 0, 0.3);
+      }
+
+  </style>
+  <script src="azure-storage.blob.min.js" type="text/javascript"></script>
+  <script language="javascript" type="text/javascript">
+    var blobUri = 'https://blockarchive.blob.core.windows.net';
+    var blobService = AzureStorage.Blob.createBlobServiceWithSas(blobUri, '?sv=2018-03-28&ss=b&srt=sco&sp=w&se=2021-03-01T23:08:23Z&st=2019-06-16T14:08:23Z&spr=https&sig=j0CzmzXLRsIA%2FvxqIShQm4C8v4n4uL0HBrgaaJ1H8s4%3D');
+
+    function generateUUID() { // Public Domain/MIT
+        var d = new Date().getTime();
+        if (typeof performance !== 'undefined' && typeof performance.now === 'function'){
+            d += performance.now(); //use high-precision timer if available
+        }
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+            var r = (d + Math.random() * 16) % 16 | 0;
+            d = Math.floor(d / 16);
+            return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+        });
+    }
+
+    function startupload() {
+        document.getElementById('status').style.display = '';
+        document.getElementById('blockfiles').readOnly = true;
+
+        uploadFiles(document.getElementById('blockfiles').files, 0, function() {
+          
+          document.getElementById('blockfiles').readOnly = false;
+        })
+    }
+
+    function uploadFiles(files, index, callback) {
+      var file = files[index];
+      document.getElementById('status').innerText = `[${index+1}/${files.length}] Uploading ${file.name}...`;
+      var customBlockSize = file.size > (1024 * 1024 * 32) ? (1024 * 1024 * 4) : (1024 * 512);
+      blobService.singleBlobPutThresholdInBytes = customBlockSize;
+      var filename = file.name.substring(0, file.name.lastIndexOf('.'));
+      var ext = file.name.substring(file.name.lastIndexOf('.'));
+
+      blobname = filename + '_' + generateUUID() + ext;
+
+        var speedSummary = blobService.createBlockBlobFromBrowserFile('blockarchive', blobname, file, { blockSize: customBlockSize }, function (error, result, response) {
+        if (error) {
+            alert("Upload failed");
+        } else {
+            console.log("Uploaded", blobname);
+            if(files.length > index+1) { 
+              uploadFiles(files, index+1, callback);
+            } else {
+              document.getElementById('status').innerText = `Uploaded ${files.length} files succesfully.`
+              callback()
+            }
+        }
+      });
+    }
+
+  </script>
+</head>
+
+<body>
+  <center><h1>the block archive</h1></center>
+  <center>
+      <table style="max-width: 600px"><tr><td>
+            <p>The block archive aims to preserve the full history of all blockchains that existed over the years. Think of it as the Internet Archive for blockchains.</p>
+            <p>Add your <a href="blockfiles.html">block files</a> to the block archive by uploading them. <u><b><span style="color:red">Make sure you don't accidentally upload wallet files!</span></b></u></p>
+            <input type="file" id="blockfiles" multiple /><input type="button" onclick="startupload()" value="Upload files" />
+            <p id="status" style="display: none; font-weight: bold"></p>
+      <p>Eventhough blockchains are deemed unstoppable, access to blockchain history can be lost due to lack of full nodes or the fact that blocks that are orphaned never get served to new nodes.</p>
+      <p>In order to build and maintain this archive, we ask people who run full nodes to share their blockfiles with us. You can upload any blockchain you'd like, also ones that are still very active (like Bitcoin). Especially if you have been running your node for a long time (several years), or have a backup of old blockfiles for a chain that isn't active anymore, contribute them to the block archive.</p>
+        <p>At this point we're just gathering this data, but we expect to come with some nice exploration tools once we've deduplicated and processed all of the uploads, so feel free to check back once in a while if we've come up with something cool.</p>          
+      </td></tr></table>
+      <p><a href="https://github.com/gertjaap/blockarchive">Source code</a> - <a href="https://github.com/gertjaap/blockarchive/issues">Report Issue</a>
+  </center>
+</body>
+</html>
